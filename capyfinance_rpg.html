@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capivaras de Wall Street</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --gold: #FFD700;
+    --green: #4dff91;
+    --red: #ff4d6e;
+    --blue: #32D4FF;
+    --white: #F5F5F5;
+    --dark: #0d0d1a;
+    --panel: rgba(10,14,30,0.88);
+    --border: rgba(200,210,255,0.25);
+    --pixel: 'Press Start 2P', monospace;
+  }
+  html, body {
+    width:100%; height:100%;
+    background:#000;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    font-family: var(--pixel);
+  }
+  #game {
+    position:relative;
+    width:1024px; height:576px;
+    overflow:hidden;
+    image-rendering:pixelated;
+    flex-shrink:0;
+  }
+  /* Scale to viewport */
+  @media (max-width:1040px) {
+    #game { transform-origin: top center; }
+  }
+
+  /* ── BG ── */
+  #bg-layer {
+    position:absolute; inset:0;
+    background-size:cover; background-position:center;
+    animation: bgPan 20s linear infinite;
+  }
+  @keyframes bgPan {
+    from { background-position: 0% center; }
+    to   { background-position: 100% center; }
+  }
+  #bg-overlay {
+    position:absolute; inset:0;
+    background: rgba(0,0,0,0.55);
+  }
+  #scanlines {
+    position:absolute; inset:0; z-index:200; pointer-events:none;
+    background: repeating-linear-gradient(to bottom,
+      transparent 0px, transparent 3px,
+      rgba(0,0,0,0.15) 3px, rgba(0,0,0,0.15) 4px);
+  }
+  #vignette {
+    position:absolute; inset:0; z-index:199; pointer-events:none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.75) 100%);
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    position:absolute; inset:0;
+    display:none; flex-direction:column;
+    align-items:center; justify-content:center;
+    z-index:10;
+  }
+  .screen.active { display:flex; }
+
+  /* ── HUD ── */
+  #hud {
+    position:absolute; top:0; left:0; right:0; height:62px;
+    background: rgba(0,0,0,0.9);
+    border-bottom: 2px solid var(--border);
+    display:flex; align-items:center;
+    padding:0 20px; gap:32px;
+    z-index:50;
+  }
+  .hud-item { font-size:10px; line-height:1.6; }
+  .hud-label { color: rgba(255,255,255,0.5); font-size:8px; display:block; }
+  .hud-green { color: var(--green); }
+  .hud-blue  { color: var(--blue); }
+  .hud-gold  { color: var(--gold); }
+  .hud-white { color: var(--white); }
+  .hud-spacer { flex:1; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: var(--pixel);
+    font-size:10px;
+    padding:10px 18px;
+    border:2px solid rgba(255,255,255,0.6);
+    border-radius:4px;
+    cursor:pointer;
+    background: rgba(20,30,55,0.9);
+    color: var(--white);
+    transition: background .1s, transform .08s, box-shadow .1s;
+    image-rendering: pixelated;
+    text-shadow: 1px 1px 0 #000;
+    position:relative;
+  }
+  .btn::after {
+    content:''; position:absolute;
+    bottom:-4px; right:-4px;
+    width:100%; height:100%;
+    background: rgba(0,0,0,0.5);
+    border-radius:4px;
+    z-index:-1;
+  }
+  .btn:hover { background: rgba(50,70,120,0.95); transform: translate(-1px,-1px); box-shadow: 2px 2px 0 #000; }
+  .btn:active { transform: translate(1px,1px); box-shadow:none; }
+  .btn.green { background: rgba(0,80,40,0.9); border-color: var(--green); color: var(--green); }
+  .btn.green:hover { background: rgba(0,120,60,0.9); }
+  .btn.red   { background: rgba(80,10,20,0.9); border-color: var(--red); color: var(--red); }
+  .btn.red:hover   { background: rgba(120,20,30,0.9); }
+  .btn.gold  { background: rgba(60,50,0,0.9); border-color: var(--gold); color: var(--gold); }
+  .btn.gold:hover  { background: rgba(90,70,0,0.9); }
+  .btn.blue  { background: rgba(0,40,80,0.9); border-color: var(--blue); color: var(--blue); }
+  .btn.blue:hover  { background: rgba(0,60,110,0.9); }
+  .btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+  /* ── TITLE SCREEN ── */
+  #screen-menu {
+    background: transparent;
+  }
+  #menu-title {
+    font-size:36px; color: var(--gold);
+    text-shadow: 4px 4px 0 #8B4500, 0 0 40px rgba(255,215,0,0.5);
+    animation: titlePulse 2s ease-in-out infinite alternate;
+    letter-spacing:2px; margin-bottom:10px;
+  }
+  @keyframes titlePulse {
+    from { text-shadow: 4px 4px 0 #8B4500, 0 0 20px rgba(255,215,0,0.3); }
+    to   { text-shadow: 4px 4px 0 #8B4500, 0 0 50px rgba(255,215,0,0.8); }
+  }
+  #menu-sub {
+    font-size:9px; color: var(--white);
+    opacity:0.7; margin-bottom:24px;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #menu-credit {
+    font-size:7px; color: var(--white);
+    opacity:0.7; margin-bottom:6px; margin-top: 20px;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #menu-arcade {
+    width:120px; image-rendering:pixelated;
+    animation: bounce 0.6s ease-in-out infinite alternate;
+    margin-bottom:28px;
+  }
+  @keyframes bounce {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-8px); }
+  }
+  #menu-chars {
+    position:absolute; bottom:80px;
+    left:0; right:0;
+    display:flex; justify-content:space-between;
+    padding:0 60px;
+  }
+  .menu-char-sprite {
+    width:120px; image-rendering:pixelated;
+    opacity:0.7;
+    animation: charFloat 1s ease-in-out infinite alternate;
+  }
+  .menu-char-sprite:nth-child(2) { animation-delay:.15s; }
+  @keyframes charFloat {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-6px); }
+  }
+  #insert-coin {
+    font-size:8px; color: var(--white); opacity:0.6;
+    margin-top:8px;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50%{opacity:0;} }
+
+  /* ── CHAR SELECT ── */
+  #screen-select {
+    background: rgba(0,0,0,0.5);
+  }
+  #select-title {
+    font-size:16px; color: var(--white);
+    text-shadow: 2px 2px 0 #000;
+    margin-bottom:28px;
+    position:absolute; top:28px;
+  }
+  #select-carousel {
+    display:flex; align-items:center; gap:20px;
+    margin-top:0;
+  }
+  #char-sprite-wrap {
+    position:relative; width:240px; height:240px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #char-sprite {
+    width:240px; height:240px;
+    image-rendering:pixelated;
+    animation: charFloat 0.8s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 20px rgba(255,215,0,0.3));
+  }
+  #char-distintivo {
+    position:absolute; bottom:0; right:0;
+    width:52px; image-rendering:pixelated;
+  }
+  #char-info {
+    max-width:260px;
+  }
+  #char-name {
+    font-size:12px; color: var(--gold);
+    text-shadow:2px 2px 0 #000;
+    margin-bottom:10px;
+  }
+  #char-desc {
+    font-size:8px; color: var(--white);
+    opacity:.8; line-height:1.9;
+    text-shadow:1px 1px 0 #000;
+    margin-bottom:16px;
+  }
+  .attr-bar-wrap {
+    margin-bottom:8px;
+  }
+  .attr-label {
+    font-size:7px; color: rgba(255,255,255,0.6);
+    margin-bottom:3px;
+  }
+  .attr-bar {
+    height:8px; background: rgba(255,255,255,0.1);
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:2px; overflow:hidden;
+  }
+  .attr-fill {
+    height:100%; border-radius:2px;
+    transition: width .3s ease;
+  }
+  .attr-fill.int { background: var(--blue); }
+  .attr-fill.sorte { background: var(--gold); }
+  .attr-fill.esp { background: var(--green); }
+  #select-dots {
+    display:flex; gap:8px; margin-top:20px;
+    justify-content:center;
+  }
+  .dot {
+    width:8px; height:8px;
+    border-radius:50%;
+    background: rgba(255,255,255,0.25);
+    border:1px solid rgba(255,255,255,0.4);
+    transition: background .2s;
+  }
+  .dot.active { background: var(--gold); }
+  #select-btns {
+    position:absolute; bottom:28px;
+    display:flex; gap:14px;
+  }
+  #nav-prev, #nav-next {
+    font-size:16px; width:48px; height:48px;
+    display:flex; align-items:center; justify-content:center;
+    padding:0;
+  }
+
+  /* ── GAME SCREEN ── */
+  #screen-game {
+    flex-direction:column;
+    justify-content:flex-start;
+    padding-top:62px;
+    background: transparent;
+  }
+  #game-body {
+    width:100%; height:calc(576px - 62px);
+    display:flex; gap:0;
+  }
+  /* Left: stock list */
+  #stock-list {
+    flex:1; padding:12px 14px;
+    display:flex; flex-direction:column; gap:8px;
+    overflow:hidden;
+  }
+  .stock-row {
+    background: rgba(8,12,28,0.82);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:10px 12px;
+    display:flex; align-items:center; gap:10px;
+    transition: border-color .15s;
+  }
+  .stock-row:hover { border-color: rgba(255,215,0,0.4); }
+  .stock-name { font-size:9px; color: var(--white); text-shadow:1px 1px 0 #000; width:110px; flex-shrink:0; }
+  .stock-sector { font-size:7px; color: rgba(255,255,255,0.4); display:block; margin-top:2px; }
+  .stock-price { font-size:9px; color: var(--gold); width:100px; flex-shrink:0; }
+  .stock-change { font-size:9px; width:72px; flex-shrink:0; font-weight:bold; }
+  .stock-change.up { color: var(--green); }
+  .stock-change.dn { color: var(--red); }
+  .stock-owned { font-size:7px; color: rgba(255,255,255,0.55); flex:1; }
+  .stock-btns { display:flex; gap:6px; flex-shrink:0; }
+  .stock-btns .btn { font-size:8px; padding:7px 10px; }
+
+  /* Right: sidebar */
+  #sidebar {
+    width:220px; flex-shrink:0;
+    background: rgba(5,8,20,0.88);
+    border-left:1px solid var(--border);
+    padding:14px 12px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .sidebar-section { font-size:7px; color:rgba(255,255,255,0.4); margin-bottom:2px; }
+  #capy-side {
+    width:120px; margin:0 auto;
+    image-rendering:pixelated;
+    animation: charFloat 1s ease-in-out infinite alternate;
+  }
+  #side-name { font-size:8px; color: var(--gold); text-align:center; margin-top:4px; text-shadow:1px 1px 0 #000; }
+  .time-btns { display:flex; flex-direction:column; gap:6px; }
+  .time-btns .btn { font-size:7px; padding:9px 8px; width:100%; text-align:center; }
+  #chart-mini-wrap {
+    background: rgba(0,0,0,0.5);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:8px;
+  }
+  #chart-mini-label { font-size:7px; color:rgba(255,255,255,0.4); margin-bottom:4px; }
+
+  /* ── EVENT MODAL ── */
+  #event-modal {
+    position:absolute; inset:0; z-index:100;
+    background: rgba(0,0,0,0.85);
+    display:none; align-items:center; justify-content:center;
+  }
+  #event-modal.active { display:flex; }
+  #event-box {
+    background: rgba(8,12,28,0.98);
+    border:2px solid var(--border);
+    border-radius:6px;
+    padding:40px 50px;
+    text-align:center;
+    max-width:480px;
+    animation: eventPop .25s ease-out;
+  }
+  @keyframes eventPop {
+    from { transform:scale(0.85); opacity:0; }
+    to   { transform:scale(1); opacity:1; }
+  }
+  #event-title { font-size:14px; color: var(--gold); margin-bottom:16px; text-shadow:2px 2px 0 #000; }
+  #event-desc  { font-size:9px; color: var(--white); line-height:2; margin-bottom:28px; opacity:.85; }
+  #event-capy  { width:100px; image-rendering:pixelated; margin:0 auto 18px; display:block;
+                  animation: charFloat .6s ease-in-out infinite alternate; }
+  #event-impact { font-size:8px; margin-bottom:22px; }
+
+  /* ── GRAPH SCREEN ── */
+  #screen-graph {
+    background: rgba(0,0,0,0.9);
+    padding-top:62px;
+  }
+  #graph-title { font-size:14px; color: var(--gold); margin-bottom:20px; text-shadow:2px 2px 0 #000; }
+  #graph-canvas { border:1px solid var(--border); background:rgba(0,0,0,0.6); border-radius:4px; }
+  #graph-info { font-size:8px; color: var(--white); margin-top:12px; opacity:.7; }
+  #graph-back { margin-top:14px; }
+
+  /* ── REPORT SCREEN ── */
+  #screen-report {
+    background: rgba(0,0,0,0.92);
+  }
+  #report-title { font-size:20px; color: var(--gold); margin-bottom:6px; text-shadow: 3px 3px 0 #8B4500; }
+  #report-sub   { font-size:8px; color: rgba(255,255,255,0.5); margin-bottom:28px; }
+  #report-body  { display:flex; gap:40px; align-items:center; }
+  #report-capy  { width:160px; image-rendering:pixelated; animation: charFloat .8s ease-in-out infinite alternate; }
+  #report-stats { font-size:9px; line-height:2.6; }
+  .rline-label { color: rgba(255,255,255,0.5); }
+  .rline-val   { color: var(--white); margin-left:8px; }
+  .rline-val.pos { color: var(--green); }
+  .rline-val.neg { color: var(--red); }
+  .rline-val.gold { color: var(--gold); }
+  #report-btns { margin-top:28px; display:flex; gap:14px; }
+
+  /* ── Coins floating ── */
+  .fcoin {
+    position:absolute; pointer-events:none;
+    width:10px; height:10px; border-radius:50%;
+    background: var(--gold); box-shadow: 0 0 6px var(--gold);
+    animation: coinRise linear forwards;
+    z-index:300;
+  }
+  @keyframes coinRise {
+    from { opacity:.9; transform:translateY(0) scale(1); }
+    to   { opacity:0; transform:translateY(-120px) scale(0.3); }
+  }
+
+  /* Notification toast */
+  #toast {
+    position:absolute; bottom:70px; left:50%; transform:translateX(-50%);
+    background: rgba(8,12,28,0.95); border:1px solid var(--border);
+    padding:10px 20px; border-radius:4px;
+    font-size:8px; color:var(--white);
+    z-index:500; pointer-events:none;
+    opacity:0; transition:opacity .2s;
+    white-space:nowrap;
+  }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div id="game">
+  <!-- BG -->
+  <div id="bg-layer"></div>
+  <div id="bg-overlay"></div>
+
+  <!-- ══ MENU ══ -->
+  <div id="screen-menu" class="screen active">
+    <div id="menu-title">Capivaras de Wall Street</div>
+    <div id="menu-sub">Domine o mercado e multiplique sua herança!</div>
+    <img id="menu-arcade" src="" alt="arcade">
+    <button class="btn gold" onclick="showScreen('select')" style="font-size:12px;padding:14px 30px;">INICIAR JOGO</button>
+    <div id="insert-coin">▶ CLIQUE PARA COMEÇAR ◀</div>
+    <div id="menu-chars" style="pointer-events: none;">
+      <img class="menu-char-sprite" id="mc1" src="" alt="">
+      <img class="menu-char-sprite" id="mc2" src="" alt="">
+    </div>
+    <div id="menu-credit">Feito por Evelyn Chiaperini, Ihago Nunes, Ihan Nunes e Maria Eduarda Ortega</div>
+  </div>
+
+  <!-- ══ CHAR SELECT ══ -->
+  <div id="screen-select" class="screen">
+    <div id="select-title">ESCOLHA SUA CAPIVARA</div>
+    <div id="select-carousel">
+      <div id="char-sprite-wrap">
+        <img id="char-sprite" src="" alt="">
+        <img id="char-distintivo" src="" alt="">
+      </div>
+      <div id="char-info">
+        <div id="char-name"></div>
+        <div id="char-desc"></div>
+        <div class="attr-bar-wrap">
+          <div class="attr-label">INTELIGÊNCIA</div>
+          <div class="attr-bar"><div class="attr-fill int" id="bar-int"></div></div>
+        </div>
+        <div class="attr-bar-wrap">
+          <div class="attr-label">SORTE</div>
+          <div class="attr-bar"><div class="attr-fill sorte" id="bar-sorte"></div></div>
+        </div>
+        <div class="attr-bar-wrap">
+          <div class="attr-label">ESPERTEZA</div>
+          <div class="attr-bar"><div class="attr-fill esp" id="bar-esp"></div></div>
+        </div>
+        <div id="select-dots"></div>
+      </div>
+    </div>
+    <div id="select-btns">
+      <button id="nav-prev" class="btn" onclick="prevChar()">◄</button>
+      <button class="btn gold" onclick="selectChar()" style="font-size:11px;padding:12px 28px;">SELECIONAR</button>
+      <button id="nav-next" class="btn" onclick="nextChar()">►</button>
+    </div>
+  </div>
+
+  <!-- ══ HUD (shared) ══ -->
+  <div id="hud" style="display:none;">
+    <div class="hud-item">
+      <span class="hud-label">CAPITAL</span>
+      <span class="hud-green" id="hud-capital">R$ 0,00</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">CARTEIRA</span>
+      <span class="hud-blue" id="hud-carteira">R$ 0,00</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">TOTAL</span>
+      <span class="hud-gold" id="hud-total">R$ 0,00</span>
+    </div>
+    <div class="hud-spacer"></div>
+    <div class="hud-item" style="text-align:right;">
+      <span class="hud-label">PERÍODO</span>
+      <span class="hud-white" id="hud-periodo">ANO 1 MÊS 1</span>
+    </div>
+  </div>
+
+  <!-- ══ GAME ══ -->
+  <div id="screen-game" class="screen">
+    <div id="game-body">
+      <div id="stock-list"></div>
+      <div id="sidebar">
+        <div class="sidebar-section">PERSONAGEM</div>
+        <img id="capy-side" src="" alt="">
+        <div id="side-name"></div>
+        <hr style="border-color:var(--border); margin:4px 0;">
+        <div class="sidebar-section">AVANÇAR TEMPO</div>
+        <div class="time-btns">
+          <button class="btn gold" onclick="avancarTempo(2)">▶ +2 MESES</button>
+          <button class="btn gold" onclick="avancarTempo(5)">▶ +5 MESES</button>
+          <button class="btn gold" onclick="avancarTempo(9)">▶▶ +9 MESES</button>
+        </div>
+        <hr style="border-color:var(--border); margin:4px 0;">
+        <div class="chart-mini-wrap" id="chart-mini-wrap">
+          <div id="chart-mini-label">PATRIMÔNIO</div>
+          <canvas id="chart-mini" width="196" height="70"></canvas>
+        </div>
+        <button class="btn blue" onclick="showScreen('graph')" style="font-size:7px;padding:8px;width:100%;text-align:center;margin-top:auto;">📈 VER GRÁFICO COMPLETO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ GRAPH ══ -->
+  <div id="screen-graph" class="screen">
+    <div id="graph-title">EVOLUÇÃO DO PATRIMÔNIO</div>
+    <canvas id="graph-canvas" width="820" height="340"></canvas>
+    <div id="graph-info"></div>
+    <button id="graph-back" class="btn" onclick="showScreen('game')">◄ VOLTAR</button>
+  </div>
+
+  <!-- ══ REPORT ══ -->
+  <div id="screen-report" class="screen">
+    <div id="report-title">BALANÇO FINAL</div>
+    <div id="report-sub">5 ANOS DE INVESTIMENTOS</div>
+    <div id="report-body">
+      <img id="report-capy" src="" alt="">
+      <div id="report-stats"></div>
+    </div>
+    <div id="report-btns">
+      <button class="btn green" onclick="restartGame()" style="font-size:10px;padding:12px 24px;">↺ REINICIAR</button>
+    </div>
+  </div>
+
+  <!-- ══ EVENT MODAL ══ -->
+  <div id="event-modal">
+    <div id="event-box">
+      <img id="event-capy" src="" alt="">
+      <div id="event-title"></div>
+      <div id="event-desc"></div>
+      <div id="event-impact"></div>
+      <button class="btn green" onclick="closeEvent()" style="font-size:10px;padding:12px 28px;">CONTINUAR ►</button>
+    </div>
+  </div>
+
+  <!-- Overlays -->
+  <div id="scanlines"></div>
+  <div id="vignette"></div>
+  <div id="toast"></div>
+</div>
+
+<script>
+// ════════════════════════════════════
+// ASSETS
+// ════════════════════════════════════
+
+const IMGS = {
+  arcade: "assets/arcade.png",
+  fundo: "assets/fundo.png",
+  empreendedor: "assets/capivara-empreendedor.png",
+  ex_trader: "assets/capivara-ex_trader.png",
+  economista: "assets/capivara-filho_de_economista.png",
+  herdeiro: "assets/capivara-herdeiro_conectado.png",
+  sortudo: "assets/capivara-sortudo.png",
+  coracao: "assets/coracao.png",
+  distintivo_empreendedor: "assets/distintivo-empreendedor.png",
+  distintivo_ex_trader: "assets/distintivo-ex_trader.png",
+  distintivo_economista: "assets/distintivo-filho_de_economista.png",
+  distintivo_herdeiro: "assets/distintivo-herdeiro_conectado.png",
+  distintivo_sortudo: "assets/distintivo_sortudo.png",
+
+};
+
+// ════════════════════════════════════
+// GAME DATA
+// ════════════════════════════════════
+const CHARS = [
+  { name:"Filho de Economista", desc:"Visão analítica do mercado.\n+Inteligência, previsões mais precisas.", int:20, sorte:10, esp:10,
+    sprite: IMGS.economista, distintivo: IMGS.distintivo_economista },
+  { name:"Ex-Trader", desc:"Rápido nas decisões.\n+Esperteza, reações ao mercado.", int:10, sorte:10, esp:20,
+    sprite: IMGS.ex_trader, distintivo: IMGS.distintivo_ex_trader },
+  { name:"Empreendedor", desc:"Sabe onde investir.\nAtributos equilibrados.", int:15, sorte:10, esp:15,
+    sprite: IMGS.empreendedor, distintivo: IMGS.distintivo_empreendedor },
+  { name:"Sortudo", desc:"O mercado o adora.\n+Sorte, eventos positivos.", int:5, sorte:25, esp:10,
+    sprite: IMGS.sortudo, distintivo: IMGS.distintivo_sortudo },
+  { name:"Herdeiro Conectado", desc:"Capital extra e bons contatos.\nInício privilegiado.", int:10, sorte:15, esp:10,
+    sprite: IMGS.herdeiro, distintivo: IMGS.distintivo_herdeiro },
+];
+
+const STOCKS_DEF = [
+  { name:"AgroCapy",   sector:"Agro",   price:50.0,  risk:0.12 },
+  { name:"TechVara",   sector:"Tech",   price:150.0, risk:0.30 },
+  { name:"BankVara",   sector:"Banco",  price:100.0, risk:0.08 },
+  { name:"EnergyCapy", sector:"Energia",price:80.0,  risk:0.10 },
+  { name:"RetailVara", sector:"Varejo", price:30.0,  risk:0.20 },
+];
+
+const EVENTS_POS = [
+  { title:"BÔNUS AGRÍCOLA",   desc:"A AgroCapy teve uma safra recorde!",        type:"stock", target:"AgroCapy",   mult:1.3 },
+  { title:"DIVIDENDOS TECH",  desc:"A TechVara distribuiu lucros extras.",       type:"capital", val:1200 },
+  { title:"MERCADO OTIMISTA", desc:"Todas as ações subiram com novas leis.",     type:"all",   mult:1.1 },
+  { title:"FUSÃO BANCÁRIA",   desc:"A BankVara anunciou expansão agressiva.",    type:"stock", target:"BankVara",  mult:1.2 },
+];
+const EVENTS_NEG = [
+  { title:"CRISE ENERGÉTICA", desc:"Apagões prejudicam a EnergyCapy.",           type:"stock", target:"EnergyCapy", mult:0.7 },
+  { title:"MULTA AMBIENTAL",  desc:"Sua empresa foi multada por poluição.",      type:"capital", val:-1500 },
+  { title:"BOLHA ESTOUROU",   desc:"O mercado de tech sofreu um crash.",          type:"stock", target:"TechVara",  mult:0.6 },
+  { title:"ESCÂNDALO VAREJO", desc:"RetailVara envolvida em fraude contábil.",   type:"stock", target:"RetailVara", mult:0.65 },
+];
+
+// ════════════════════════════════════
+// STATE
+// ════════════════════════════════════
+let player = null;
+let stocks = [];
+let charIndex = 0;
+let mesAtual = 1;
+let anoAtual = 1;
+let currentScreen = 'menu';
+let toastTimer = null;
+
+// ════════════════════════════════════
+// INIT
+// ════════════════════════════════════
+function init() {
+  document.getElementById('bg-layer').style.backgroundImage = `url(${IMGS.fundo})`;
+  document.getElementById('menu-arcade').src = IMGS.arcade;
+  document.getElementById('mc1').src = IMGS.sortudo;
+  document.getElementById('mc2').src = IMGS.ex_trader;
+  renderCharSelect();
+  scaleGame();
+}
+
+function scaleGame() {
+  const g = document.getElementById('game');
+  const sx = window.innerWidth / 1024;
+  const sy = window.innerHeight / 576;
+  const s = Math.min(sx, sy, 1);
+  g.style.transform = s < 1 ? `scale(${s})` : '';
+  g.style.transformOrigin = 'top center';
+}
+window.addEventListener('resize', scaleGame);
+
+// ════════════════════════════════════
+// SCREEN MANAGEMENT
+// ════════════════════════════════════
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const hud = document.getElementById('hud');
+  if (name === 'game' || name === 'graph') {
+    hud.style.display = 'flex';
+  } else {
+    hud.style.display = 'none';
+  }
+  const map = { menu:'screen-menu', select:'screen-select', game:'screen-game',
+                 graph:'screen-graph', report:'screen-report' };
+  document.getElementById(map[name]).classList.add('active');
+  currentScreen = name;
+
+  if (name === 'graph') drawGraph();
+  if (name === 'game') { updateHUD(); renderStocks(); drawMiniChart(); }
+}
+
+// ════════════════════════════════════
+// CHAR SELECT
+// ════════════════════════════════════
+function renderCharSelect() {
+  const c = CHARS[charIndex];
+  document.getElementById('char-sprite').src = c.sprite;
+  document.getElementById('char-distintivo').src = c.distintivo;
+  document.getElementById('char-name').textContent = c.name.toUpperCase();
+  document.getElementById('char-desc').textContent = c.desc;
+  document.getElementById('bar-int').style.width   = (c.int / 25 * 100) + '%';
+  document.getElementById('bar-sorte').style.width = (c.sorte / 25 * 100) + '%';
+  document.getElementById('bar-esp').style.width   = (c.esp / 25 * 100) + '%';
+
+  const dots = document.getElementById('select-dots');
+  dots.innerHTML = CHARS.map((_, i) =>
+    `<div class="dot ${i===charIndex?'active':''}"></div>`).join('');
+}
+function prevChar() { charIndex = (charIndex - 1 + CHARS.length) % CHARS.length; renderCharSelect(); }
+function nextChar() { charIndex = (charIndex + 1) % CHARS.length; renderCharSelect(); }
+
+function selectChar() {
+  const c = CHARS[charIndex];
+  let base = randInt(8000, 15000);
+  if (c.name === 'Herdeiro Conectado') base += 5000;
+
+  player = {
+    charType: c.name,
+    capital: base,
+    initialCapital: base,
+    int: c.int,
+    sorte: c.sorte,
+    esp: c.esp,
+    sprite: c.sprite,
+    shares: { AgroCapy:0, TechVara:0, BankVara:0, EnergyCapy:0, RetailVara:0 },
+    history: [base],
+  };
+
+  stocks = STOCKS_DEF.map(s => ({
+    ...s,
+    lastPrice: s.price,
+    history: [s.price],
+  }));
+
+  mesAtual = 1; anoAtual = 1;
+
+  document.getElementById('capy-side').src = c.sprite;
+  document.getElementById('side-name').textContent = c.name.toUpperCase().split(' ').join('\n');
+
+  showScreen('game');
+  updateHUD();
+  renderStocks();
+  showToast(`Herança recebida: ${fmtCur(player.capital)}!`);
+}
+
+// ════════════════════════════════════
+// HUD
+// ════════════════════════════════════
+function totalWealth() {
+  const pVal = stocks.reduce((acc, s) => acc + player.shares[s.name] * s.price, 0);
+  return player.capital + pVal;
+}
+function portfolioValue() {
+  return stocks.reduce((acc, s) => acc + player.shares[s.name] * s.price, 0);
+}
+function updateHUD() {
+  const pv = portfolioValue();
+  const tw = player.capital + pv;
+  document.getElementById('hud-capital').textContent  = fmtCur(player.capital);
+  document.getElementById('hud-carteira').textContent = fmtCur(pv);
+  document.getElementById('hud-total').textContent    = fmtCur(tw);
+  document.getElementById('hud-periodo').textContent  = `ANO ${anoAtual} MÊS ${mesAtual}`;
+}
+
+// ════════════════════════════════════
+// STOCK RENDERING
+// ════════════════════════════════════
+function renderStocks() {
+  const list = document.getElementById('stock-list');
+  list.innerHTML = stocks.map(s => {
+    const chg = ((s.price / s.lastPrice) - 1) * 100;
+    const owned = player.shares[s.name];
+    const ownedVal = owned * s.price;
+    const chgClass = chg >= 0 ? 'up' : 'dn';
+    const chgStr = (chg >= 0 ? '▲ +' : '▼ ') + chg.toFixed(2) + '%';
+    return `
+    <div class="stock-row">
+      <div class="stock-name">${s.name}<span class="stock-sector">${s.sector}</span></div>
+      <div class="stock-price">${fmtCur(s.price)}</div>
+      <div class="stock-change ${chgClass}">${chgStr}</div>
+      <div class="stock-owned">${owned > 0 ? owned.toFixed(3) + ' cotas<br>' + fmtCur(ownedVal) : '—'}</div>
+      <div class="stock-btns">
+        <button class="btn green" onclick="trade('${s.name}',100)">+R$100</button>
+        <button class="btn red"   onclick="trade('${s.name}',-100)">-R$100</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════
+// TRADE
+// ════════════════════════════════════
+function trade(stockName, amount) {
+  const stock = stocks.find(s => s.name === stockName);
+  if (amount > 0) {
+    if (player.capital < amount) { showToast('Capital insuficiente!'); return; }
+    player.capital -= amount;
+    player.shares[stockName] += amount / stock.price;
+    spawnCoins(2);
+  } else {
+    const sell = Math.abs(amount);
+    const cur = player.shares[stockName] * stock.price;
+    if (cur <= 0) { showToast('Sem cotas para vender!'); return; }
+    const actual = Math.min(sell, cur);
+    player.shares[stockName] -= actual / stock.price;
+    if (player.shares[stockName] < 0.0001) player.shares[stockName] = 0;
+    player.capital += actual;
+    spawnCoins(1);
+  }
+  updateHUD(); renderStocks(); drawMiniChart();
+}
+
+// ════════════════════════════════════
+// TIME ADVANCE
+// ════════════════════════════════════
+function avancarTempo(meses) {
+  for (let i = 0; i < meses; i++) {
+    mesAtual++;
+    if (mesAtual > 12) { mesAtual = 1; anoAtual++; }
+    stocks.forEach(s => updateStock(s));
+    player.history.push(totalWealth());
+    if ((anoAtual - 1) * 12 + mesAtual > 60) break;
+  }
+  updateHUD(); renderStocks(); drawMiniChart();
+
+  // Random event (30% chance)
+  if (Math.random() < 0.30) {
+    triggerEvent();
+    return;
+  }
+
+  if ((anoAtual - 1) * 12 + mesAtual > 60) {
+    setTimeout(() => showReport(), 300);
+  }
+}
+
+function updateStock(s) {
+  s.lastPrice = s.price;
+  const chanceUp = 0.5 + (player.int * 0.002) + (player.sorte * 0.001);
+  const chgPct = Math.random() * s.risk;
+  if (Math.random() < chanceUp) s.price *= (1 + chgPct);
+  else s.price *= (1 - chgPct);
+  if (s.price < 1) s.price = 1;
+  s.history.push(s.price);
+}
+
+// ════════════════════════════════════
+// EVENTS
+// ════════════════════════════════════
+function triggerEvent() {
+  const sorteFactor = player.sorte / 100;
+  const pool = Math.random() < (0.5 + sorteFactor) ? EVENTS_POS : EVENTS_NEG;
+  const ev = pool[Math.floor(Math.random() * pool.length)];
+
+  // Apply effect
+  if (ev.type === 'capital') {
+    player.capital += ev.val;
+    if (player.capital < 0) player.capital = 0;
+  } else if (ev.type === 'all') {
+    stocks.forEach(s => s.price *= ev.mult);
+  } else if (ev.type === 'stock') {
+    const s = stocks.find(st => st.name === ev.target);
+    if (s) s.price = Math.max(1, s.price * ev.mult);
+  }
+
+  const isPos = EVENTS_POS.includes(ev);
+  document.getElementById('event-capy').src = isPos ? IMGS.sortudo : IMGS.ex_trader;
+  document.getElementById('event-title').textContent = ev.title;
+  document.getElementById('event-desc').textContent  = ev.desc;
+
+  let impactText = '';
+  if (ev.type === 'capital') impactText = (ev.val >= 0 ? '▲ +' : '▼ ') + fmtCur(Math.abs(ev.val));
+  else if (ev.type === 'all') impactText = `▲ Todas as ações x${ev.mult}`;
+  else impactText = `${ev.mult >= 1 ? '▲' : '▼'} ${ev.target} x${ev.mult}`;
+  document.getElementById('event-impact').innerHTML =
+    `<span style="color:${isPos?'var(--green)':'var(--red)'};font-size:10px;">${impactText}</span>`;
+
+  document.getElementById('event-modal').classList.add('active');
+}
+
+function closeEvent() {
+  document.getElementById('event-modal').classList.remove('active');
+  updateHUD(); renderStocks(); drawMiniChart();
+  if ((anoAtual - 1) * 12 + mesAtual > 60) setTimeout(() => showReport(), 300);
+}
+
+// ════════════════════════════════════
+// GRAPH
+// ════════════════════════════════════
+function drawGraph() {
+  const canvas = document.getElementById('graph-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const hist = player.history;
+  ctx.clearRect(0,0,W,H);
+
+  if (hist.length < 2) return;
+  const maxV = Math.max(...hist) * 1.05;
+  const minV = Math.min(...hist) * 0.95;
+  const range = maxV - minV || 1;
+  const pad = {l:60,r:20,t:20,b:30};
+  const gw = W-pad.l-pad.r, gh = H-pad.t-pad.b;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.lineWidth = 1;
+  for (let i=0;i<=4;i++) {
+    const y = pad.t + (i/4)*gh;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+gw,y); ctx.stroke();
+    const val = maxV - (i/4)*range;
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '9px "Press Start 2P"';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmtCurShort(val), pad.l-4, y+4);
+  }
+
+  // Area fill
+  const pts = hist.map((v,i) => ({
+    x: pad.l + (i/(hist.length-1))*gw,
+    y: pad.t + (1-(v-minV)/range)*gh
+  }));
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pad.t+gh);
+  pts.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.lineTo(pts[pts.length-1].x, pad.t+gh);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0,pad.t,0,pad.t+gh);
+  grad.addColorStop(0,'rgba(255,215,0,0.3)');
+  grad.addColorStop(1,'rgba(255,215,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = '#FFD700';
+  ctx.shadowBlur = 8;
+  pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Last dot
+  const last = pts[pts.length-1];
+  ctx.beginPath();
+  ctx.arc(last.x, last.y, 5, 0, Math.PI*2);
+  ctx.fillStyle = '#FFD700';
+  ctx.fill();
+
+  // Initial line
+  const initY = pad.t + (1-(player.initialCapital-minV)/range)*gh;
+  ctx.setLineDash([6,4]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l,initY); ctx.lineTo(pad.l+gw,initY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const tw = totalWealth();
+  const lucro = tw - player.initialCapital;
+  document.getElementById('graph-info').innerHTML =
+    `Atual: <span style="color:${lucro>=0?'var(--green)':'var(--red)'}">${fmtCur(tw)}</span>` +
+    `&nbsp;&nbsp;Lucro: <span style="color:${lucro>=0?'var(--green)':'var(--red)'}">${lucro>=0?'+':''}${fmtCur(lucro)}</span>`;
+}
+
+function drawMiniChart() {
+  const canvas = document.getElementById('chart-mini');
+  const ctx = canvas.getContext('2d');
+  const W=196, H=70;
+  const hist = player.history;
+  ctx.clearRect(0,0,W,H);
+  if (hist.length < 2) return;
+  const maxV = Math.max(...hist)*1.02, minV = Math.min(...hist)*0.98;
+  const range = maxV-minV||1;
+  const pts = hist.map((v,i)=>({
+    x:(i/(hist.length-1))*W,
+    y:(1-(v-minV)/range)*H
+  }));
+  // fill
+  ctx.beginPath();
+  ctx.moveTo(0,H);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.lineTo(W,H); ctx.closePath();
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'rgba(255,215,0,0.35)');
+  g.addColorStop(1,'rgba(255,215,0,0)');
+  ctx.fillStyle=g; ctx.fill();
+  // line
+  ctx.beginPath();
+  ctx.strokeStyle='#FFD700'; ctx.lineWidth=1.5;
+  pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.stroke();
+}
+
+// ════════════════════════════════════
+// REPORT
+// ════════════════════════════════════
+function showReport() {
+  const tw  = totalWealth();
+  const vp  = player.initialCapital;
+  const lucro = tw - vp;
+  const tSimples   = ((tw/vp)-1)/5*100;
+  const tCompostos = (Math.pow(tw/vp,1/5)-1)*100;
+
+  document.getElementById('report-capy').src = lucro >= 0 ? IMGS.sortudo : IMGS.ex_trader;
+  document.getElementById('report-stats').innerHTML = `
+    <div><span class="rline-label">CAPITAL INICIAL:</span><span class="rline-val">${fmtCur(vp)}</span></div>
+    <div><span class="rline-label">MONTANTE FINAL: </span><span class="rline-val gold">${fmtCur(tw)}</span></div>
+    <div><span class="rline-label">LUCRO/PREJUÍZO: </span><span class="rline-val ${lucro>=0?'pos':'neg'}">${lucro>=0?'+':''}${fmtCur(lucro)}</span></div>
+    <div style="margin-top:10px;"></div>
+    <div><span class="rline-label">JUROS SIMPLES EQ:  </span><span class="rline-val ${tSimples>=0?'pos':'neg'}">${tSimples.toFixed(2)}% a.a.</span></div>
+    <div><span class="rline-label">JUROS COMPOSTOS EQ:</span><span class="rline-val ${tCompostos>=0?'pos':'neg'}">${tCompostos.toFixed(2)}% a.a.</span></div>
+    <div style="margin-top:14px; font-size:8px; color:rgba(255,255,255,0.4);">PERSONAGEM: ${player.charType.toUpperCase()}</div>
+  `;
+  showScreen('report');
+}
+
+function restartGame() {
+  player = null; stocks = []; charIndex = 0;
+  mesAtual = 1; anoAtual = 1;
+  showScreen('menu');
+  document.getElementById('hud').style.display = 'none';
+}
+
+// ════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════
+function randInt(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
+
+function fmtCur(v) {
+  return 'R$ ' + v.toFixed(2)
+    .replace('.', ',')
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function fmtCurShort(v) {
+  if (v >= 1000) return 'R$' + (v/1000).toFixed(1) + 'k';
+  return 'R$' + v.toFixed(0);
+}
+
+function showToast(msg, duration=2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function spawnCoins(n) {
+  const game = document.getElementById('game');
+  for (let i=0; i<n; i++) {
+    const coin = document.createElement('div');
+    coin.className = 'fcoin';
+    coin.style.left = (100 + Math.random()*300) + 'px';
+    coin.style.bottom = '80px';
+    coin.style.animationDuration = (0.8 + Math.random()*0.6) + 's';
+    coin.style.animationDelay = (i*0.12) + 's';
+    game.appendChild(coin);
+    setTimeout(() => coin.remove(), 1600);
+  }
+}
+
+// ════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (currentScreen === 'select') {
+    if (e.key === 'ArrowLeft')  prevChar();
+    if (e.key === 'ArrowRight') nextChar();
+    if (e.key === 'Enter') selectChar();
+  }
+  if (currentScreen === 'menu' && e.key === 'Enter') showScreen('select');
+});
+
+// ════════════════════════════════════
+// START
+// ════════════════════════════════════
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
