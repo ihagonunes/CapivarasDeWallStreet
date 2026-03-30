@@ -579,7 +579,7 @@ const CHARS = [
 
 const STOCKS_DEF = [
   { name:"AgroCapy",   sector:"Agro",   price:50.0,  risk:0.12 },
-  { name:"TechVara",   sector:"Tech",   price:150.0, risk:0.30 },
+  { name:"TechNova",   sector:"Tech",   price:150.0, risk:0.30 },
   { name:"BankVara",   sector:"Banco",  price:100.0, risk:0.08 },
   { name:"EnergyCapy", sector:"Energia",price:80.0,  risk:0.10 },
   { name:"RetailVara", sector:"Varejo", price:30.0,  risk:0.20 },
@@ -587,14 +587,14 @@ const STOCKS_DEF = [
 
 const EVENTS_POS = [
   { title:"BÔNUS AGRÍCOLA",   desc:"A AgroCapy teve uma safra recorde!",        type:"stock", target:"AgroCapy",   mult:1.3 },
-  { title:"DIVIDENDOS TECH",  desc:"A TechVara distribuiu lucros extras.",       type:"capital", val:1200 },
+  { title:"DIVIDENDOS TECH",  desc:"A TechNova distribuiu lucros extras.",       type:"capital", val:1200 },
   { title:"MERCADO OTIMISTA", desc:"Todas as ações subiram com novas leis.",     type:"all",   mult:1.1 },
   { title:"FUSÃO BANCÁRIA",   desc:"A BankVara anunciou expansão agressiva.",    type:"stock", target:"BankVara",  mult:1.2 },
 ];
 const EVENTS_NEG = [
   { title:"CRISE ENERGÉTICA", desc:"Apagões prejudicam a EnergyCapy.",           type:"stock", target:"EnergyCapy", mult:0.7 },
   { title:"MULTA AMBIENTAL",  desc:"Sua empresa foi multada por poluição.",      type:"capital", val:-1500 },
-  { title:"BOLHA ESTOUROU",   desc:"O mercado de tech sofreu um crash.",          type:"stock", target:"TechVara",  mult:0.6 },
+  { title:"BOLHA ESTOUROU",   desc:"O mercado de tech sofreu um crash.",          type:"stock", target:"TechNova",  mult:0.6 },
   { title:"ESCÂNDALO VAREJO", desc:"RetailVara envolvida em fraude contábil.",   type:"stock", target:"RetailVara", mult:0.65 },
 ];
 
@@ -684,7 +684,7 @@ function selectChar() {
     sorte: c.sorte,
     esp: c.esp,
     sprite: c.sprite,
-    shares: { AgroCapy:0, TechVara:0, BankVara:0, EnergyCapy:0, RetailVara:0 },
+    shares: { AgroCapy:0, TechNova:0, BankVara:0, EnergyCapy:0, RetailVara:0 },
     history: [base],
   };
 
